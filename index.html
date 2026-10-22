@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>539 幸運選號器</title>
+<!-- Google AdSense 主程式碼 -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8650378214532678"
+     crossorigin="anonymous"></script>
+<style>
+  :root{
+    --bg1:#0f172a; --bg2:#1e1b4b; --card:rgba(255,255,255,.07);
+    --line:rgba(255,255,255,.14); --text:#f1f5f9; --muted:#94a3b8;
+    --gold:#fbbf24; --gold2:#f59e0b; --accent:#818cf8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; color:var(--text);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#3730a3 0%,transparent 60%),
+               linear-gradient(160deg,var(--bg1),var(--bg2));
+    display:flex; justify-content:center; padding:32px 16px 88px;
+  }
+  .wrap{width:100%; max-width:560px}
+  h1{margin:0; text-align:center; font-size:26px; letter-spacing:.04em}
+  .sub{text-align:center; color:var(--muted); font-size:14px; margin:8px 0 28px}
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:20px;
+    padding:24px 16px; backdrop-filter:blur(8px);
+  }
+  .grid{display:grid; grid-template-columns:repeat(5,1fr); gap:10px}
+  .cell{display:flex; flex-direction:column; align-items:center; gap:10px}
+  .ball{
+    width:100%; aspect-ratio:1; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(20px,6vw,30px); font-weight:800;
+    border:2px solid var(--line); background:rgba(255,255,255,.05);
+    transition:transform .5s, background .4s, box-shadow .4s;
+  }
+  .ball.open{
+    background:radial-gradient(circle at 30% 25%,#fde68a,var(--gold2));
+    color:#451a03; border-color:#fde68a;
+    box-shadow:0 0 22px rgba(251,191,36,.5);
+  }
+  .ball.pop{animation:pop .6s ease}
+  @keyframes pop{0%{transform:scale(.6) rotate(-20deg)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .ball.locked{font-size:clamp(18px,5vw,26px); opacity:.85}
+  .ball.counting{border-color:var(--accent); box-shadow:0 0 18px rgba(129,140,248,.5); color:#c7d2fe}
+  .tag{font-size:11px; color:var(--muted); height:14px}
+  button.unlock{
+    width:100%; padding:9px 0; border:0; border-radius:10px; cursor:pointer;
+    font-size:12px; font-weight:700; color:#fff;
+    background:linear-gradient(135deg,#6366f1,#8b5cf6);
+    transition:filter .2s, transform .1s;
+  }
+  button.unlock:hover:not(:disabled){filter:brightness(1.15)}
+  button.unlock:active:not(:disabled){transform:scale(.97)}
+  button.unlock:disabled{opacity:.4; cursor:not-allowed}
+  button.unlock.done{display:none}
+
+  /* 廣告彈層 */
+  .overlay{
+    position:fixed; inset:0; background:rgba(2,6,23,.82); display:none;
+    align-items:center; justify-content:center; padding:16px; z-index:50;
+  }
+  .overlay.show{display:flex}
+  .modal{
+    width:100%; max-width:420px; background:#111827; border:1px solid var(--line);
+    border-radius:18px; padding:20px; text-align:center;
+  }
+  .modal h2{margin:0 0 4px; font-size:17px}
+  .modal p{margin:0 0 14px; color:var(--muted); font-size:13px}
+  .ad-slot{
+    min-height:250px; border:1px dashed var(--line); border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:13px; margin-bottom:16px; overflow:hidden;
+  }
+  .bar{height:8px; background:rgba(255,255,255,.1); border-radius:99px; overflow:hidden}
+  .bar>i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--gold)); transition:width 1s linear}
+  .count{margin-top:10px; font-size:14px}
+  .count b{color:var(--gold); font-size:20px}
+
+  .actions{display:flex; justify-content:center; margin-top:22px}
+  .reset{
+    background:transparent; color:var(--muted); border:1px solid var(--line);
+    border-radius:99px; padding:8px 18px; font-size:13px; cursor:pointer;
+  }
+  .reset:hover{color:var(--text); border-color:var(--text)}
+  /* 免責聲明：小字 (12px/16px)、淡灰色 #9ca3af，固定在網頁底部置中 */
+  .disclaimer{
+    position:fixed; left:50%; bottom:8px; transform:translateX(-50%); z-index:1;
+    width:calc(100vw - 24px); max-width:560px;
+    font-size:.75rem; line-height:1rem; color:#9ca3af;
+    text-align:center; pointer-events:none;
+  }
+  .final{text-align:center; margin-top:18px; min-height:24px; font-size:15px; color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎯 539 幸運選號器</h1>
+  <div class="sub">依近 7 期號碼的冷熱分布，隨機組合 5 個號碼（娛樂參考）</div>
+
+  <div class="panel">
+    <div class="grid" id="grid"></div>
+    <div class="final" id="final"></div>
+    <div class="actions"><button class="reset" id="resetBtn">🔄 重新選號</button></div>
+  </div>
+
+  <!-- 頁面內的一般廣告位：貼上你的 AdSense 廣告單元 -->
+  <div id="pageAd" style="margin-top:20px"></div>
+
+</div>
+
+<!-- 免責聲明：固定在網頁底部置中 -->
+<footer class="disclaimer">
+  ⚠️ 本工具僅供娛樂。彩券每期開獎為獨立隨機事件，過去號碼無法預測未來結果，
+  任何選號方式的中獎機率都相同。請理性購買、量力而為。
+</footer>
+
+<!-- 廣告倒數彈層 -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>請稍候，正在解鎖第 <span id="mIdx">3</span> 格</h2>
+    <p>倒數結束後自動顯示號碼，請勿關閉頁面</p>
+    <div class="ad-slot" id="adSlot">
+      <!-- ▼▼ 在這裡貼上你的 Google AdSense 廣告單元程式碼 ▼▼
+      <ins class="adsbygoogle" style="display:block"
+           data-ad-client="ca-pub-8650378214532678" data-ad-slot="YYYYYYYY"
+           data-ad-format="auto" data-full-width-responsive="true"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});<\/script>
+      ▲▲ 貼上位置結束 ▲▲ -->
+      <span>廣告顯示區（請貼入 AdSense 程式碼）</span>
+    </div>
+    <div class="bar"><i id="barFill"></i></div>
+    <div class="count">剩餘 <b id="sec">30</b> 秒</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // 各格解鎖倒數秒數：第 3、4 碼 5 秒（模擬插頁廣告），第 5 碼 30 秒（模擬激勵影片）
+  const COUNTDOWN_BY_CELL = {2: 5, 3: 5, 4: 30};
+  const DEFAULT_COUNTDOWN = 30;
+  const FREE_CELLS = 2;           // 一開始直接顯示的格數
+  const TOTAL = 5;
+
+  // 近 7 期開獎資料（最新一期在最前面、最舊在最後；字串轉整數，避免 "03" 之類的問題）
+  const raw = [
+    ["03","14","25","33","36"],
+    ["01","08","12","29","39"],
+    ["05","11","22","30","35"],
+    ["02","19","23","27","38"],
+    ["07","13","14","25","31"],
+    ["03","09","18","24","36"],
+    ["04","15","20","32","37"]
+  ];
+  const draws = raw.map(d => d.map(n => parseInt(n, 10)));
+
+  const sample = (arr, k) => {
+    const a = [...arr], out = [];
+    while (out.length < k && a.length) out.push(a.splice(Math.floor(Math.random() * a.length), 1)[0]);
+    return out;
+  };
+
+  // 選號規則
+  //  熱門：近 7 期次數最高的 3 個當候選，選 1~2 個
+  //  冷門：近 7 期次數最低的 2 個（優先沒開過）當候選，選 1~2 個
+  //  中等：近 7 期資料中「最後 3 期」開出的號碼（排除熱門、冷門候選），隨機取 2 個當候選，選 1~2 個
+  //  三組候選互不重複；三組合計固定 5 碼
+  const WINDOW = 7;
+  const MID_LAST_N = 3;
+  const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+
+  function generate() {
+    const pool = Array.from({length: 39}, (_, i) => i + 1);
+    const recent = draws.slice(0, WINDOW);               // 近 7 期（最新在前）
+    const cnt = {};
+    recent.flat().forEach(n => cnt[n] = (cnt[n] || 0) + 1);
+    const c = n => cnt[n] || 0;
+    const shuffled = arr => sample(arr, arr.length);     // 同次數時隨機排序
+
+    const hotC  = shuffled(pool).sort((a, b) => c(b) - c(a)).slice(0, 3);
+    const coldC = shuffled(pool.filter(n => !hotC.includes(n)))
+                    .sort((a, b) => c(a) - c(b)).slice(0, 2);
+
+    // 中等：近 7 期中的最後 3 期（清單尾端 3 筆）開出的號碼
+    const lastN = new Set(recent.slice(-MID_LAST_N).flat());
+    const midPool = [...lastN].filter(n => !hotC.includes(n) && !coldC.includes(n));
+    const midC = sample(midPool, 2);
+
+    // 每組 1~2 個且合計 5 碼，只有三種組合：熱/冷/中 = 2/2/1、2/1/2、1/2/2
+    const plans = [[2, 2, 1], [2, 1, 2], [1, 2, 2]];
+    const [h, cc, m] = plans[randInt(0, plans.length - 1)];
+
+    return [...sample(hotC, h), ...sample(coldC, cc), ...sample(midC, m)]
+      .sort((x, y) => x - y);
+  }
+
+  const labels = ["熱門號", "熱門號", "趨勢號", "遺漏號", "補償號"];
+  const pad = n => String(n).padStart(2, "0");
+
+  const grid = document.getElementById("grid");
+  const finalEl = document.getElementById("final");
+  const overlay = document.getElementById("overlay");
+  const sec = document.getElementById("sec");
+  const barFill = document.getElementById("barFill");
+  const mIdx = document.getElementById("mIdx");
+
+  let numbers = [];
+  let opened = [];
+  let busy = false;
+
+  function build() {
+    numbers = generate();
+    opened = numbers.map((_, i) => i < FREE_CELLS);
+    grid.innerHTML = "";
+    finalEl.textContent = "";
+    numbers.forEach((n, i) => {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.innerHTML = `
+        <div class="ball" id="ball${i}"></div>
+        <div class="tag">第 ${i + 1} 碼</div>
+        <button class="unlock" id="btn${i}">🔓 看廣告解鎖</button>`;
+      grid.appendChild(cell);
+      if (opened[i]) reveal(i, false);
+      else {
+        setLocked(i);
+        cell.querySelector("button").addEventListener("click", () => startCountdown(i));
+      }
+      if (opened[i]) cell.querySelector("button").classList.add("done");
+    });
+    syncButtons();
+  }
+
+  function setLocked(i) {
+    const b = document.getElementById("ball" + i);
+    b.className = "ball locked";
+    b.textContent = "🔒";
+  }
+
+  function reveal(i, animate = true) {
+    const b = document.getElementById("ball" + i);
+    b.className = "ball open" + (animate ? " pop" : "");
+    b.textContent = pad(numbers[i]);
+    opened[i] = true;
+    const btn = document.getElementById("btn" + i);
+    if (btn) btn.classList.add("done");
+    if (opened.every(Boolean)) {
+      finalEl.textContent = "🔮 本次組合：" + numbers.map(pad).join("  ");
+    }
+  }
+
+  function syncButtons() {
+    numbers.forEach((_, i) => {
+      const btn = document.getElementById("btn" + i);
+      if (btn) btn.disabled = busy;
+    });
+  }
+
+  function startCountdown(i) {
+    if (busy || opened[i]) return;
+    busy = true; syncButtons();
+    const ball = document.getElementById("ball" + i);
+    ball.className = "ball locked counting";
+    mIdx.textContent = i + 1;
+    overlay.classList.add("show");
+
+    const total = COUNTDOWN_BY_CELL[i] ?? DEFAULT_COUNTDOWN;
+    let left = total;
+    sec.textContent = left;
+    barFill.style.transition = "none";
+    barFill.style.width = "0%";
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      barFill.style.transition = "width 1s linear";
+    }));
+
+    const timer = setInterval(() => {
+      // 分頁在背景時暫停計時，避免偷跑
+      if (document.hidden) return;
+      left--;
+      sec.textContent = left;
+      ball.textContent = left;
+      barFill.style.width = ((total - left) / total * 100) + "%";
+      if (left <= 0) {
+        clearInterval(timer);
+        overlay.classList.remove("show");
+        reveal(i);
+        busy = false; syncButtons();
+      }
+    }, 1000);
+    ball.textContent = left;
+  }
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (busy) return;
+    build();
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>
